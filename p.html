@@ -6,6 +6,7 @@
 <title>Lento</title>
 <script src="app/src/main/assets/cuentos.js"></script>
 <script src="app/src/main/assets/qrcode.min.js"></script>
+<script src="dibujos.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
@@ -24,8 +25,10 @@ body{background:#141a33;background:radial-gradient(ellipse at 50% 30%,#2a3360 0%
 #qr img,#qr canvas,#qr table{width:100%!important;height:100%!important}
 #cod{font-family:Georgia,serif;font-size:2.4vw;letter-spacing:.3em;margin-top:1vw}
 #cuento{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5vw 10vw;text-align:center}
-#escena{font-size:16vw;line-height:1}
-#texto{margin-top:4vw;font-size:3.4vw;line-height:1.35;max-width:72vw}
+#escena{width:58vw;height:37.7vw;border-radius:2vw;overflow:hidden;box-shadow:0 1vw 4vw rgba(0,0,0,.4)}
+#escena svg{display:block}
+#aviso{position:absolute;top:2vw;left:0;right:0;text-align:center;font-size:1.6vw;color:#f3c969}
+#texto{margin-top:2.5vw;font-size:2.6vw;line-height:1.35;max-width:72vw}
 #tit{position:absolute;top:3vw;left:4vw;font-size:1.6vw;color:#aab3d6}
 #pag{position:absolute;top:3vw;right:4vw;font-size:1.6vw;color:#aab3d6}
 #pausa{position:absolute;bottom:4vw;left:0;right:0;text-align:center;font-size:1.8vw;color:#aab3d6}
@@ -53,6 +56,8 @@ body{background:#141a33;background:radial-gradient(ellipse at 50% 30%,#2a3360 0%
 </div>
 <div id="velo"></div>
 <div id="nota">conectando…</div>
+<div id="aviso" class="hidden">🔈 Pulsa OK en el mando del proyector para activar el sonido</div>
+<audio id="voz" preload="auto"></audio>
 
 <script>
 // ===== Lento · pantalla web (proyector). Sin cuentas. =====
@@ -76,26 +81,29 @@ $('#cod').textContent=codigo;
 
 function buscar(id){for(var i=0;i<CUENTOS.length;i++)if(CUENTOS[i].id===id)return CUENTOS[i];return null;}
 
-// ---- voz (si el navegador la tiene) ----
-var hayVoz=false;
-try{hayVoz=('speechSynthesis' in window)&&typeof SpeechSynthesisUtterance!=='undefined';}catch(e){}
-function hablar(t){
-  callar();
-  var dur=Math.max(5000,t.length*75);
-  $('#barra').style.transition='none';$('#barra').style.width='0';
-  setTimeout(function(){$('#barra').style.transition='width '+(dur/1000)+'s linear';$('#barra').style.width='100%';},50);
-  if(hayVoz){
-    try{
-      var u=new SpeechSynthesisUtterance(t);u.lang='es-ES';u.rate=.85;
-      var vs=speechSynthesis.getVoices();for(var i=0;i<vs.length;i++){if(/^es/i.test(vs[i].lang)){u.voice=vs[i];break;}}
-      u.onend=fin;speechSynthesis.speak(u);
-      espera=setTimeout(fin,dur+8000); // por si el navegador no avisa
-      return;
-    }catch(e){}
-  }
-  espera=setTimeout(fin,dur);
+// ---- voz: audios grabados (funcionan en cualquier navegador) ----
+var voz=document.getElementById('voz');
+var sonidoOk=false;
+voz.onended=function(){fin();};
+function desbloquear(){
+  if(sonidoOk)return; sonidoOk=true; $('#aviso').classList.add('hidden');
+  if(estado.sonando&&voz.src){var r=voz.play();if(r&&r.catch)r.catch(function(){});}
 }
-function callar(){clearTimeout(espera);try{speechSynthesis.cancel();}catch(e){}}
+document.addEventListener('keydown',desbloquear);document.addEventListener('click',desbloquear);
+function hablar(t,url,nuevo){
+  clearTimeout(espera);
+  var dur=Math.max(5000,t.length*75);
+  if(nuevo||!voz.src){
+    $('#barra').style.transition='none';$('#barra').style.width='0';
+    setTimeout(function(){$('#barra').style.transition='width '+(dur/1000)+'s linear';$('#barra').style.width='100%';},50);
+    voz.src=url;
+  }
+  var r; try{r=voz.play();}catch(e){}
+  if(r&&r.then){r.then(function(){sonidoOk=true;$('#aviso').classList.add('hidden');}).catch(function(){ $('#aviso').classList.remove('hidden'); espera=setTimeout(fin,dur); });}
+  // red de seguridad: si el audio no avisa al terminar, seguimos igual
+  espera=setTimeout(fin,dur+15000);
+}
+function callar(){clearTimeout(espera);try{voz.pause();}catch(e){}}
 function fin(){
   clearTimeout(espera);
   espera=setTimeout(function(){
@@ -121,8 +129,8 @@ function pintar(cambia){
   var p=c.paginas[estado.pag];
   $('#tit').textContent=c.titulo;$('#pag').textContent=(estado.pag+1)+' / '+c.paginas.length;
   $('#pausa').classList.toggle('hidden',estado.sonando);
-  if(cambia){$('#escena').textContent=p[0];$('#texto').textContent=p[1];}
-  if(estado.sonando&&(cambia||!leyendo)){hablar(p[1]);leyendo=true;}
+  if(cambia){var dib=window.DIBUJOS&&DIBUJOS[c.id+'-'+(estado.pag+1)];$('#escena').innerHTML=dib||'';$('#texto').textContent=p[1];}
+  if(estado.sonando&&(cambia||!leyendo)){hablar(p[1],'audio/'+c.id+'-'+(estado.pag+1)+'.mp3',cambia);leyendo=true;}
   if(!estado.sonando){callar();leyendo=false;$('#barra').style.transition='none';$('#barra').style.width='0';}
   avisarEstado();
 }
