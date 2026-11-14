@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lento</title>
+<script src="app/src/main/assets/cuentos.js"></script>
+<script src="app/src/main/assets/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:#141a33;background:radial-gradient(ellipse at 50% 30%,#2a3360 0%,#141a33 70%);color:#f6efe2;font-family:sans-serif}
+.serif{font-family:Georgia,serif}
+.hidden{display:none!important}
+.estrella{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:.45}
+#reposo{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;padding:5vw}
+#reposo .izq{margin-right:6vw}
+#marca{font-size:9vw;font-weight:bold}
+#sub{color:#aab3d6;font-size:2vw;margin-top:1vw}
+#pasos{margin-top:3vw;font-size:1.8vw;color:#aab3d6;line-height:1.8}
+#pasos b{color:#f6efe2}
+#qrBox{background:#f6efe2;padding:1.6vw;border-radius:2vw;text-align:center;color:#1c2340}
+#qr{width:22vw;height:22vw}
+#qr img,#qr canvas,#qr table{width:100%!important;height:100%!important}
+#cod{font-family:Georgia,serif;font-size:2.4vw;letter-spacing:.3em;margin-top:1vw}
+#cuento{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5vw 10vw;text-align:center}
+#escena{font-size:16vw;line-height:1}
+#texto{margin-top:4vw;font-size:3.4vw;line-height:1.35;max-width:72vw}
+#tit{position:absolute;top:3vw;left:4vw;font-size:1.6vw;color:#aab3d6}
+#pag{position:absolute;top:3vw;right:4vw;font-size:1.6vw;color:#aab3d6}
+#pausa{position:absolute;bottom:4vw;left:0;right:0;text-align:center;font-size:1.8vw;color:#aab3d6}
+#velo{position:absolute;top:0;left:0;right:0;bottom:0;background:#000;pointer-events:none;transition:opacity 1.5s;opacity:0}
+#nota{position:absolute;bottom:1.5vw;right:2vw;font-size:1.1vw;color:#6d77a3}
+#barra{position:absolute;bottom:0;left:0;height:.5vw;background:#f3c969;width:0;transition:width .5s linear;opacity:.6}
+</style>
+</head>
+<body>
+<div id="cielo"></div>
+<div id="reposo">
+  <div class="izq">
+    <div id="marca" class="serif">Lento</div>
+    <div id="sub">Cuentos para dormir</div>
+    <div id="pasos">1. Escanea el código con el móvil<br>2. Elige un cuento<br>3. <b>Apaga la luz</b> 🌙</div>
+  </div>
+  <div id="qrBox"><div id="qr"></div><div id="cod"></div></div>
+</div>
+<div id="cuento" class="hidden">
+  <div id="tit"></div><div id="pag"></div>
+  <div id="escena"></div>
+  <div id="texto" class="serif"></div>
+  <div id="pausa" class="hidden">⏸ En pausa</div>
+  <div id="barra"></div>
+</div>
+<div id="velo"></div>
+<div id="nota">conectando…</div>
+
+<script>
+// ===== Lento · pantalla web (proyector). Sin cuentas. =====
+// El móvil manda órdenes a un canal de ntfy.sh con el código de esta pantalla.
+var RELAY='https://ntfy.sh/';
+function $(s){return document.querySelector(s);}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){return null;}}
+var LETRAS='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+var codigo=ls('lentoCod');
+if(!codigo){codigo='';for(var i=0;i<6;i++)codigo+=LETRAS.charAt(Math.floor(Math.random()*LETRAS.length));ls('lentoCod',codigo);}
+var CANAL='lento-'+codigo.toLowerCase()+'-k7';
+var estado={cuento:null,pag:0,sonando:false,luz:false,seq:0};
+var espera=null,leyendo=false,ultimoId=null;
+
+for(var j=0;j<60;j++){var s=document.createElement('div');s.className='estrella';s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';$('#cielo').appendChild(s);}
+
+var base=location.href.split('#')[0].split('?')[0].replace(/p\.html$/,'');
+var urlMando=base+'m.html#'+codigo;
+try{new QRCode($('#qr'),{text:urlMando,width:400,height:400,colorDark:'#1c2340',colorLight:'#f6efe2',correctLevel:QRCode.CorrectLevel.M});}catch(e){$('#qr').textContent=urlMando;}
+$('#cod').textContent=codigo;
+
+function buscar(id){for(var i=0;i<CUENTOS.length;i++)if(CUENTOS[i].id===id)return CUENTOS[i];return null;}
+
+// ---- voz (si el navegador la tiene) ----
+var hayVoz=false;
+try{hayVoz=('speechSynthesis' in window)&&typeof SpeechSynthesisUtterance!=='undefined';}catch(e){}
+function hablar(t){
+  callar();
+  var dur=Math.max(5000,t.length*75);
+  $('#barra').style.transition='none';$('#barra').style.width='0';
+  setTimeout(function(){$('#barra').style.transition='width '+(dur/1000)+'s linear';$('#barra').style.width='100%';},50);
+  if(hayVoz){
+    try{
+      var u=new SpeechSynthesisUtterance(t);u.lang='es-ES';u.rate=.85;
+      var vs=speechSynthesis.getVoices();for(var i=0;i<vs.length;i++){if(/^es/i.test(vs[i].lang)){u.voice=vs[i];break;}}
+      u.onend=fin;speechSynthesis.speak(u);
+      espera=setTimeout(fin,dur+8000); // por si el navegador no avisa
+      return;
+    }catch(e){}
+  }
+  espera=setTimeout(fin,dur);
+}
+function callar(){clearTimeout(espera);try{speechSynthesis.cancel();}catch(e){}}
+function fin(){
+  clearTimeout(espera);
+  espera=setTimeout(function(){
+    if(!estado.sonando)return;var c=buscar(estado.cuento);if(!c)return;
+    if(estado.pag<c.paginas.length-1){estado.pag++;estado.seq++;pintar(true);}
+    else{estado.sonando=false;estado.luz=true;estado.seq++;pintar(false);}
+  },1500);
+}
+
+// ---- órdenes del móvil ----
+function orden(d){
+  if(!d||typeof d!=='object')return;
+  var c=buscar(d.cuento);
+  var cambia=!c||d.cuento!==estado.cuento||d.pag!==estado.pag;
+  estado={cuento:c?c.id:null,pag:c?Math.max(0,Math.min(d.pag|0,c.paginas.length-1)):0,sonando:!!d.sonando&&!!c,luz:!!d.luz,seq:estado.seq+1};
+  pintar(cambia);
+}
+function pintar(cambia){
+  $('#velo').style.opacity=estado.luz?0.6:0;
+  var c=buscar(estado.cuento);
+  if(!c){callar();leyendo=false;$('#cuento').classList.add('hidden');$('#reposo').classList.remove('hidden');avisarEstado();return;}
+  $('#reposo').classList.add('hidden');$('#cuento').classList.remove('hidden');
+  var p=c.paginas[estado.pag];
+  $('#tit').textContent=c.titulo;$('#pag').textContent=(estado.pag+1)+' / '+c.paginas.length;
+  $('#pausa').classList.toggle('hidden',estado.sonando);
+  if(cambia){$('#escena').textContent=p[0];$('#texto').textContent=p[1];}
+  if(estado.sonando&&(cambia||!leyendo)){hablar(p[1]);leyendo=true;}
+  if(!estado.sonando){callar();leyendo=false;$('#barra').style.transition='none';$('#barra').style.width='0';}
+  avisarEstado();
+}
+
+// ---- conexión (ntfy.sh) ----
+function avisarEstado(){
+  var x=new XMLHttpRequest();x.open('POST',RELAY+CANAL+'-estado');
+  try{x.send(JSON.stringify(estado));}catch(e){}
+}
+function procesar(txt){
+  try{var ev=JSON.parse(txt);if(ev.event!=='message')return;if(ev.id===ultimoId)return;ultimoId=ev.id;orden(JSON.parse(ev.message));}catch(e){}
+}
+function nota(t){$('#nota').textContent=t;}
+function conectarSSE(){
+  var es=new EventSource(RELAY+CANAL+'/sse');
+  es.onopen=function(){nota('listo · código '+codigo);};
+  es.onmessage=function(e){procesar(e.data);};
+  es.onerror=function(){nota('reconectando…');};
+}
+function conectarPoll(){ // por si el navegador no tiene EventSource
+  nota('listo · código '+codigo+' (modo lento)');
+  setInterval(function(){
+    var x=new XMLHttpRequest();x.open('GET',RELAY+CANAL+'/json?poll=1&since='+(ultimoId||'10s'));
+    x.onload=function(){var ls=x.responseText.split('\n');for(var i=0;i<ls.length;i++)if(ls[i])procesar(ls[i]);};
+    x.send();
+  },6000);
+}
+if(window.EventSource)conectarSSE();else conectarPoll();
+avisarEstado();
+setInterval(avisarEstado,60000); // latido para que el móvil sepa que la pantalla sigue ahí
+</script>
+</body>
+</html>
