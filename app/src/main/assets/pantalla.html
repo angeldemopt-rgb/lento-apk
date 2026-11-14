@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lento</title>
+<script src="cuentos.js"></script>
+<script src="qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:radial-gradient(ellipse at 50% 30%,#2a3360 0%,#141a33 70%);color:#f6efe2;font-family:sans-serif}
+.serif{font-family:Georgia,'Noto Serif',serif}
+.hidden{display:none!important}
+.estrella{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:.45}
+#reposo{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6vw;padding:5vw}
+#marca{font-size:9vw;font-weight:bold}
+#sub{color:#aab3d6;font-size:2vw;margin-top:1vw}
+#pasos{margin-top:3vw;font-size:1.8vw;color:#aab3d6;line-height:1.8}
+#pasos b{color:#f6efe2}
+#qrBox{background:#f6efe2;padding:1.6vw;border-radius:2vw;text-align:center;color:#1c2340}
+#qr{width:22vw;height:22vw}
+#qr img,#qr canvas{width:100%!important;height:100%!important}
+#dir{font-size:1.2vw;margin-top:.8vw}
+#cuento{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5vw 10vw;text-align:center}
+#escena{font-size:16vw;line-height:1}
+#texto{margin-top:4vw;font-size:3.4vw;line-height:1.35;max-width:72vw}
+#tit{position:absolute;top:3vw;left:4vw;font-size:1.6vw;color:#aab3d6}
+#pag{position:absolute;top:3vw;right:4vw;font-size:1.6vw;color:#aab3d6}
+#pausa{position:absolute;bottom:4vw;left:50%;transform:translateX(-50%);font-size:1.8vw;color:#aab3d6}
+#velo{position:absolute;inset:0;background:#000;pointer-events:none;transition:opacity 1.5s;opacity:0}
+#nota{position:absolute;bottom:1.5vw;right:2vw;font-size:1.1vw;color:#6d77a3}
+</style>
+</head>
+<body>
+<div id="cielo"></div>
+
+<div id="reposo">
+  <div>
+    <div id="marca" class="serif">Lento</div>
+    <div id="sub">Cuentos para dormir</div>
+    <div id="pasos">1. Escanea el código con el móvil<br>2. Elige un cuento<br>3. <b>Apaga la luz</b> 🌙</div>
+  </div>
+  <div id="qrBox"><div id="qr"></div><div id="dir"></div></div>
+</div>
+
+<div id="cuento" class="hidden">
+  <div id="tit"></div><div id="pag"></div>
+  <div id="escena"></div>
+  <div id="texto" class="serif"></div>
+  <div id="pausa" class="hidden">⏸ En pausa</div>
+</div>
+
+<div id="velo"></div>
+<div id="nota">Atrás ×5 = ajustes</div>
+
+<script>
+var $=function(s){return document.querySelector(s);};
+var A=window.Lento||{hablar:function(){setTimeout(function(){window.onHablaFin&&onHablaFin();},3000);},callar:function(){},direccion:function(){return '';},setEstado:function(){}};
+var estado={cuento:null,pag:0,sonando:false,luz:false,seq:0};
+var espera=null;
+
+// estrellas
+for(var i=0;i<60;i++){var s=document.createElement('div');s.className='estrella';s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';$('#cielo').appendChild(s);}
+
+// QR con la dirección del proyector en la wifi de casa
+function pintarQR(){
+  var url=A.direccion();
+  $('#qr').innerHTML='';
+  if(!url){ $('#dir').textContent='Sin wifi: conecta el proyector a internet'; setTimeout(pintarQR,5000); return; }
+  new QRCode($('#qr'),{text:url,width:400,height:400,colorDark:'#1c2340',colorLight:'#f6efe2',correctLevel:QRCode.CorrectLevel.M});
+  $('#dir').textContent=url.replace('http://','');
+}
+pintarQR();
+
+function buscar(id){for(var i=0;i<CUENTOS.length;i++) if(CUENTOS[i].id===id) return CUENTOS[i]; return null;}
+function guardar(){A.setEstado(JSON.stringify(estado));}
+
+// Órdenes que llegan del móvil (MainActivity llama a esta función)
+window.onOrden=function(d){
+  if(!d||typeof d!=='object') return;
+  var c=buscar(d.cuento);
+  var cambia=!c||d.cuento!==estado.cuento||d.pag!==estado.pag;
+  estado={cuento:c?c.id:null,pag:c?Math.max(0,Math.min(d.pag|0,c.paginas.length-1)):0,sonando:!!d.sonando&&!!c,luz:!!d.luz,seq:estado.seq+1};
+  pintar(cambia);
+};
+
+// Cuando la voz termina una lámina, pasa a la siguiente
+window.onHablaFin=function(){
+  clearTimeout(espera);
+  espera=setTimeout(function(){
+    if(!estado.sonando) return;
+    var c=buscar(estado.cuento); if(!c) return;
+    if(estado.pag<c.paginas.length-1){estado.pag++;estado.seq++;pintar(true);}
+    else {estado.sonando=false;estado.luz=true;estado.seq++;pintar(false);} // fin: se apaga la pared
+  },1800);
+};
+
+var leyendo=false;
+function pintar(cambia){
+  $('#velo').style.opacity=estado.luz?0.6:0;
+  var c=buscar(estado.cuento);
+  if(!c){ A.callar(); leyendo=false; clearTimeout(espera); $('#cuento').classList.add('hidden'); $('#reposo').classList.remove('hidden'); guardar(); return; }
+  $('#reposo').classList.add('hidden'); $('#cuento').classList.remove('hidden');
+  var p=c.paginas[estado.pag];
+  $('#tit').textContent=c.titulo; $('#pag').textContent=(estado.pag+1)+' / '+c.paginas.length;
+  $('#pausa').classList.toggle('hidden',estado.sonando);
+  if(cambia){ $('#escena').textContent=p[0]; $('#texto').textContent=p[1]; }
+  if(estado.sonando && (cambia || !leyendo)){ clearTimeout(espera); A.hablar(p[1]); leyendo=true; }
+  if(!estado.sonando){ A.callar(); leyendo=false; clearTimeout(espera); }
+  guardar();
+}
+guardar();
+</script>
+</body>
+</html>

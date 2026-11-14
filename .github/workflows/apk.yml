@@ -1,0 +1,45 @@
+name: Compilar APK de Lento
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Compilar
+        run: gradle --no-daemon assembleDebug
+
+      - name: Renombrar
+        run: cp app/build/outputs/apk/debug/app-debug.apk Lento.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lento-apk
+          path: Lento.apk
+
+      # Publica la APK como "release" para poder bajarla con Downloader
+      - name: Publicar descarga
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: prueba
+          name: Lento (prueba)
+          files: Lento.apk
+          prerelease: true
+          make_latest: true
