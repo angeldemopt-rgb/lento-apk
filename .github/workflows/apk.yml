@@ -2,6 +2,10 @@ name: Compilar APK de Lento
 
 on:
   push:
+    paths:
+      - "app/**"
+      - "*.gradle"
+      - ".github/workflows/apk.yml"
   workflow_dispatch:
 
 permissions:
@@ -33,13 +37,13 @@ jobs:
           name: Lento-apk
           path: Lento.apk
 
-      # Publica la APK como "release" para poder bajarla con Downloader
+      # Cada compilación queda publicada; la última siempre en /releases/latest/download/Lento.apk
       - name: Publicar descarga
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: prueba
-          name: Lento (prueba)
+          tag_name: build-${{ github.run_number }}
+          name: Lento (prueba ${{ github.run_number }})
           files: Lento.apk
-          prerelease: true
+          prerelease: false
           make_latest: true

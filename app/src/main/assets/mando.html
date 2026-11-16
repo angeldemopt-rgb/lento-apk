@@ -4,19 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#141a33">
-<title>Lento · mando</title>
+<title>Lento</title>
 <script src="cuentos.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#141a33;color:#f6efe2;font-family:-apple-system,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
-h1,h3{font-family:Georgia,serif}
-button{font:inherit;border:0;cursor:pointer}
-main{max-width:520px;margin:0 auto;padding:20px 18px 150px}
-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+body{background:#141a33;color:#f6efe2;font-family:-apple-system,system-ui,sans-serif;-webkit-tap-highlight-color:transparent;min-height:100vh}
+h1,h2,h3{font-family:Georgia,serif}
+button,input{font:inherit;border:0}
+button{cursor:pointer}
+.hidden{display:none!important}
+.pant{max-width:520px;margin:0 auto;padding:calc(22px + env(safe-area-inset-top)) 20px 160px}
+.centro{text-align:center;padding-top:12vh}
+.centro p{color:#aab3d6;line-height:1.5;margin:14px 0 26px}
+.logo{font-size:44px}
+.btn{display:block;width:100%;background:#f6efe2;color:#1c2340;padding:17px;border-radius:999px;font-weight:800;font-size:17px;margin-top:12px}
+.btn.sec{background:transparent;color:#f6efe2;box-shadow:inset 0 0 0 2px #3a4478}
+.btn:disabled{opacity:.5}
+.campo{width:100%;background:#232b52;color:#f6efe2;padding:15px 16px;border-radius:14px;font-size:17px;margin-top:10px}
+.err{color:#f3a49b;font-size:14px;margin-top:12px;min-height:18px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 header h1{font-size:30px}
-.pill{font-size:13px;padding:6px 12px;border-radius:999px;background:#2a3360;color:#aab3d6}
+.pill{font-size:13px;padding:6px 12px;border-radius:999px;background:#2a3360;color:#aab3d6;display:inline-flex;align-items:center}
 .pill i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#e57373;margin-right:6px}
 .pill.ok i{background:#7bd88f}
+.icono{background:#232b52;color:#f6efe2;width:42px;height:42px;border-radius:50%;font-size:20px}
 .intro{color:#aab3d6;font-size:15px;margin-bottom:18px;line-height:1.45}
 .t{width:100%;display:flex;align-items:center;gap:14px;text-align:left;background:#232b52;color:#f6efe2;padding:14px;border-radius:20px;margin-bottom:12px}
 .t .em{font-size:40px;width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex:none}
@@ -29,58 +40,199 @@ header h1{font-size:30px}
 .cs{max-width:520px;margin:0 auto;display:flex;gap:8px}
 .c{flex:1;height:56px;border-radius:16px;background:#2a3360;color:#f6efe2;font-size:22px}
 .c.p{background:#f6efe2;color:#1c2340}
+.red{width:100%;display:flex;justify-content:space-between;align-items:center;background:#232b52;color:#f6efe2;padding:15px 16px;border-radius:14px;margin-top:8px;text-align:left}
+.red.sel{box-shadow:inset 0 0 0 2px #f3c969}
+.red small{color:#aab3d6}
+.fila{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid #2a3360;font-size:15px}
+.fila span:first-child{color:#aab3d6}
+.paso{color:#f3c969;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 </style>
 </head>
 <body>
-<main>
-  <header><h1>Lento</h1><span class="pill" id="conex"><i></i><span>Conectando…</span></span></header>
+
+<!-- Sin código: hay que escanear -->
+<section id="vEscanear" class="pant centro hidden">
+  <div class="logo">🦥</div>
+  <h1>Lento</h1>
+  <p>Escanea con la cámara el código que sale en la pared para emparejar este móvil con tu Lento.</p>
+</section>
+
+<!-- Emparejar -->
+<section id="vEmparejar" class="pant centro hidden">
+  <div class="logo">🦥</div>
+  <div class="paso">Paso 1 de 2</div>
+  <h1 style="margin-top:6px">Emparejar</h1>
+  <p>Hemos encontrado un Lento.<br><b id="eSerial"></b></p>
+  <button class="btn" id="bEmparejar">Emparejar</button>
+  <div class="err" id="eErr"></div>
+</section>
+
+<!-- Wifi de casa (modo sin wifi) -->
+<section id="vWifi" class="pant hidden">
+  <div class="paso">Paso 2 de 2</div>
+  <h1 style="margin:6px 0 8px">Tu wifi de casa</h1>
+  <p class="intro">Elige la wifi a la que se conectará Lento y escribe la contraseña.</p>
+  <div id="redes"><p class="intro">Buscando redes…</p></div>
+  <input class="campo" id="wSsid" placeholder="Nombre de la wifi" autocomplete="off" autocapitalize="off">
+  <input class="campo" id="wClave" type="password" placeholder="Contraseña" autocomplete="off">
+  <button class="btn" id="bWifi">Conectar Lento</button>
+  <button class="btn sec" id="bBuscar">Buscar de nuevo</button>
+  <div class="err" id="wErr"></div>
+</section>
+
+<!-- Wifi enviada -->
+<section id="vWifiOk" class="pant centro hidden">
+  <div class="logo">📶</div>
+  <h1>¡Casi está!</h1>
+  <p>Lento se está conectando a <b id="okRed"></b>.<br><br>Ahora <b>vuelve a conectar tu móvil a tu wifi de casa</b> y escanea otra vez el código que aparecerá en la pared.</p>
+</section>
+
+<!-- Mando -->
+<section id="vMando" class="pant hidden">
+  <header>
+    <div><h1 id="mNombre">Lento</h1><span class="pill" id="conex"><i></i><span>Conectando…</span></span></div>
+    <button class="icono" id="bAjustes" aria-label="Ajustes">⚙︎</button>
+  </header>
   <p class="intro">Elige un cuento y empezará en la pared. Luego puedes dejar el móvil boca abajo.</p>
   <div id="lista"></div>
-</main>
-<div id="barra">
+</section>
+
+<!-- Ajustes -->
+<section id="vAjustes" class="pant hidden">
+  <header><h1>Ajustes</h1><button class="icono" id="bVolver" aria-label="Volver">✕</button></header>
+  <div class="fila"><span>Nombre</span><span id="aNombre"></span></div>
+  <div class="fila"><span>Número de serie</span><span id="aSerial"></span></div>
+  <div class="fila"><span>Wifi</span><span id="aRed"></span></div>
+  <div class="fila"><span>Móviles emparejados</span><span id="aMoviles"></span></div>
+  <div class="fila"><span>Versión</span><span id="aVer"></span></div>
+  <input class="campo" id="nNombre" placeholder="Cambiar nombre (p. ej. Lento de Lucía)" maxlength="30">
+  <button class="btn sec" id="bNombre">Guardar nombre</button>
+  <button class="btn sec" id="bOlvidar" style="color:#f3a49b">Desemparejar este Lento</button>
+</section>
+
+<div id="barra" class="hidden">
   <div id="ahora">Nada sonando</div>
   <div class="cs">
-    <button class="c" data-c="prev">⏮</button>
-    <button class="c p" data-c="toggle" id="tg">▶︎</button>
-    <button class="c" data-c="next">⏭</button>
-    <button class="c" data-c="stop">⏹</button>
-    <button class="c" data-c="luz" id="lz">🌙</button>
+    <button class="c" data-c="prev" aria-label="Anterior">⏮</button>
+    <button class="c p" data-c="toggle" id="tg" aria-label="Reproducir o pausar">▶︎</button>
+    <button class="c" data-c="next" aria-label="Siguiente">⏭</button>
+    <button class="c" data-c="stop" aria-label="Terminar">⏹</button>
+    <button class="c" data-c="luz" id="lz" aria-label="Luz">🌙</button>
   </div>
 </div>
+
 <script>
-var $=function(s){return document.querySelector(s);};
-var v={cuento:null,pag:0,sonando:false,luz:false,seq:-1};
-function buscar(id){for(var i=0;i<CUENTOS.length;i++) if(CUENTOS[i].id===id) return CUENTOS[i]; return null;}
+function $(s){return document.querySelector(s);}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){return null;}}
+function ver(id){['vEscanear','vEmparejar','vWifi','vWifiOk','vMando','vAjustes'].forEach(function(x){$('#'+x).classList.toggle('hidden',x!==id);});$('#barra').classList.toggle('hidden',id!=='vMando');}
 
-CUENTOS.forEach(function(c){
-  var b=document.createElement('button'); b.className='t'; b.dataset.id=c.id;
-  b.innerHTML='<span class="em" style="background:'+c.color+'33">'+c.em+'</span><span><small>'+c.tag.toUpperCase()+'</small><h3>'+c.titulo+'</h3><small>'+c.paginas.length+' láminas</small></span>';
-  b.onclick=function(){mandar({cuento:c.id,pag:0,sonando:true,luz:false});};
-  $('#lista').appendChild(b);
-});
-document.querySelectorAll('.c').forEach(function(b){b.onclick=function(){control(b.dataset.c);};});
+// Parámetros del QR: #k=CLAVE&w=1
+var params={};(location.hash||'').replace(/^#/,'').split('&').forEach(function(p){var kv=p.split('=');if(kv[0])params[kv[0]]=decodeURIComponent(kv[1]||'');});
+var clave=params.k||'';
+var info={},token=null,v={cuento:null,pag:0,sonando:false,luz:false,seq:-1},vivo=0;
 
+function api(metodo,ruta,cuerpo){
+  var h={'Content-Type':'application/json'};
+  if(token)h['X-Lento-Token']=token;
+  if(clave)h['X-Lento-Clave']=clave;
+  return fetch(ruta,{method:metodo,headers:h,body:cuerpo?JSON.stringify(cuerpo):undefined,cache:'no-store'}).then(function(r){return r.json().then(function(j){if(!r.ok){var e=new Error(j.error||r.status);e.code=r.status;throw e;}return j;});});
+}
+
+function arrancar(){
+  api('GET','/api/info').then(function(i){
+    info=i;
+    token=ls('lento-token-'+i.serial);
+    if(token){
+      return api('GET','/api/estado').then(function(){
+        if(params.w==='1'&&i.modo==='sinwifi')return pantallaWifi();
+        entrarMando();
+      }).catch(function(){token=null;ls('lento-token-'+i.serial,null);sinToken();});
+    }
+    sinToken();
+  }).catch(function(){ver('vEscanear');});
+}
+function sinToken(){
+  if(!clave){ver('vEscanear');return;}
+  $('#eSerial').textContent=info.serial||'';
+  $('#eErr').textContent='';
+  ver('vEmparejar');
+}
+$('#bEmparejar').onclick=function(){
+  var b=this;b.disabled=true;$('#eErr').textContent='';
+  api('POST','/api/emparejar',{clave:clave}).then(function(r){
+    token=r.token;ls('lento-token-'+r.serial,token);info=r;
+    if(r.modo==='sinwifi'||params.w==='1')pantallaWifi();else entrarMando();
+  }).catch(function(e){$('#eErr').textContent=e.code===403?'Este código no es de este Lento. Escanea el de la pared.':'No encuentro a Lento. ¿Está tu móvil en la misma wifi?';}).then(function(){b.disabled=false;});
+};
+
+// ---- Wifi ----
+var redSel='';
+function pantallaWifi(){ver('vWifi');buscarRedes();}
+function buscarRedes(){
+  $('#redes').innerHTML='<p class="intro">Buscando redes…</p>';
+  api('GET','/api/redes').then(function(r){
+    var l=r.redes||[];var box=$('#redes');box.innerHTML='';
+    if(!l.length){box.innerHTML='<p class="intro">No veo redes. Escribe el nombre de tu wifi.</p>';return;}
+    l.slice(0,8).forEach(function(n){
+      var b=document.createElement('button');b.className='red';
+      b.innerHTML='<span>'+escH(n.ssid)+'</span><small>'+(n.abierta?'abierta ':'🔒 ')+'▂▄▆█'.slice(0,(n.senal||0)+1)+'</small>';
+      b.onclick=function(){redSel=n.ssid;$('#wSsid').value=n.ssid;document.querySelectorAll('.red').forEach(function(x){x.classList.remove('sel');});b.classList.add('sel');$('#wClave').focus();};
+      box.appendChild(b);
+    });
+  }).catch(function(){$('#redes').innerHTML='<p class="intro">No he podido buscar redes. Escribe el nombre de tu wifi.</p>';});
+}
+$('#bBuscar').onclick=buscarRedes;
+$('#bWifi').onclick=function(){
+  var ssid=$('#wSsid').value.trim();if(!ssid){$('#wErr').textContent='Elige o escribe tu wifi.';return;}
+  api('POST','/api/wifi',{ssid:ssid,clave:$('#wClave').value}).then(function(){$('#okRed').textContent='«'+ssid+'»';ver('vWifiOk');})
+  .catch(function(){$('#wErr').textContent='No he podido mandárselo a Lento. Inténtalo de nuevo.';});
+};
+function escH(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+// ---- Mando ----
+function buscar(id){for(var i=0;i<CUENTOS.length;i++)if(CUENTOS[i].id===id)return CUENTOS[i];return null;}
+var montado=false;
+function entrarMando(){
+  ver('vMando');
+  $('#mNombre').textContent=info.nombre||'Lento';
+  if(!montado){
+    montado=true;
+    CUENTOS.forEach(function(c){
+      var b=document.createElement('button');b.className='t';b.dataset.id=c.id;
+      b.innerHTML='<span class="em" style="background:'+c.color+'33">'+c.em+'</span><span><small>'+c.tag.toUpperCase()+'</small><h3>'+c.titulo+'</h3><small>'+c.paginas.length+' láminas</small></span>';
+      b.onclick=function(){mandar({cuento:c.id,pag:0,sonando:true,luz:false});};
+      $('#lista').appendChild(b);
+    });
+    document.querySelectorAll('.c').forEach(function(b){b.onclick=function(){control(b.dataset.c);};});
+    leer();setInterval(leer,1500);
+  }
+  pintar();
+}
 function control(k){
   var c=buscar(v.cuento);
-  if(k==='luz') return mandar({cuento:v.cuento,pag:v.pag,sonando:v.sonando,luz:!v.luz});
-  if(!c) return;
-  if(k==='toggle') mandar({cuento:v.cuento,pag:v.pag,sonando:!v.sonando,luz:v.luz});
-  if(k==='next') mandar({cuento:v.cuento,pag:Math.min(v.pag+1,c.paginas.length-1),sonando:v.sonando,luz:v.luz});
-  if(k==='prev') mandar({cuento:v.cuento,pag:Math.max(v.pag-1,0),sonando:v.sonando,luz:v.luz});
-  if(k==='stop') mandar({cuento:null,pag:0,sonando:false,luz:v.luz});
+  if(k==='luz')return mandar({cuento:v.cuento,pag:v.pag,sonando:v.sonando,luz:!v.luz});
+  if(!c)return;
+  if(k==='toggle')mandar({cuento:v.cuento,pag:v.pag,sonando:!v.sonando,luz:v.luz});
+  if(k==='next')mandar({cuento:v.cuento,pag:Math.min(v.pag+1,c.paginas.length-1),sonando:v.sonando,luz:v.luz});
+  if(k==='prev')mandar({cuento:v.cuento,pag:Math.max(v.pag-1,0),sonando:v.sonando,luz:v.luz});
+  if(k==='stop')mandar({cuento:null,pag:0,sonando:false,luz:v.luz});
 }
 function mandar(o){
-  v.cuento=o.cuento; v.pag=o.pag; v.sonando=o.sonando; v.luz=o.luz; pintar();
-  fetch('/orden',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)})
-    .then(function(){setTimeout(leer,300);}).catch(function(){ok(false);});
+  v.cuento=o.cuento;v.pag=o.pag;v.sonando=o.sonando;v.luz=o.luz;pintar();
+  api('POST','/api/orden',o).then(function(){setTimeout(leer,300);}).catch(fallo);
 }
 function leer(){
-  fetch('/estado',{cache:'no-store'}).then(function(r){return r.json();}).then(function(e){
-    ok(true);
-    if(typeof e.seq==='number' && e.seq!==v.seq){v=e;pintar();}
-  }).catch(function(){ok(false);});
+  if($('#vMando').classList.contains('hidden')&&$('#vAjustes').classList.contains('hidden'))return;
+  api('GET','/api/estado').then(function(r){
+    vivo=Date.now();ok(true);info=r.info||info;$('#mNombre').textContent=info.nombre||'Lento';
+    var s=r.cuento||{};if(typeof s.seq==='number'&&s.seq!==v.seq){v=s;pintar();}
+  }).catch(fallo);
 }
-function ok(b){var c=$('#conex');c.classList.toggle('ok',b);c.querySelector('span').textContent=b?'Proyector conectado':'Sin conexión';}
+function fallo(e){
+  if(e&&e.code===401){token=null;ls('lento-token-'+info.serial,null);sinToken();return;}
+  ok(false);
+}
+function ok(b){var c=$('#conex');c.classList.toggle('ok',b);c.querySelector('span').textContent=b?'Conectado':'Sin conexión';}
 function pintar(){
   var c=buscar(v.cuento);
   document.querySelectorAll('.t').forEach(function(t){t.classList.toggle('on',t.dataset.id===v.cuento);});
@@ -88,7 +240,21 @@ function pintar(){
   $('#tg').textContent=v.sonando?'⏸':'▶︎';
   $('#lz').textContent=v.luz?'☀️':'🌙';
 }
-leer(); setInterval(leer,1500);
+
+// ---- Ajustes ----
+$('#bAjustes').onclick=function(){
+  $('#aNombre').textContent=info.nombre||'';$('#aSerial').textContent=info.serial||'';
+  $('#aRed').textContent=info.red||'—';$('#aMoviles').textContent=info.moviles||'';$('#aVer').textContent=info.version||'';
+  ver('vAjustes');
+};
+$('#bVolver').onclick=function(){entrarMando();};
+$('#bNombre').onclick=function(){var n=$('#nNombre').value.trim();if(!n)return;api('POST','/api/nombre',{nombre:n}).then(function(){info.nombre=n;$('#aNombre').textContent=n;$('#nNombre').value='';});};
+$('#bOlvidar').onclick=function(){
+  if(this.dataset.c!=='1'){this.dataset.c='1';this.textContent='¿Seguro? Pulsa otra vez para desemparejar';return;}
+  api('POST','/api/olvidar').then(function(){ls('lento-token-'+info.serial,null);token=null;clave='';ver('vEscanear');}).catch(fallo);
+};
+
+arrancar();
 </script>
 </body>
 </html>

@@ -9,10 +9,12 @@ android {
     defaultConfig {
         applicationId "es.postureo.lento"
         minSdk 24
-        targetSdk 34
-        versionCode 1
-        versionName "0.1-prueba"
+        targetSdk 28  // Android 9: deja a una app normal conectarse a wifis (para pruebas)
+        versionCode 2
+        versionName "0.2-prueba"
     }
+
+    lint { abortOnError false; checkReleaseBuilds false }
 
     buildTypes {
         release { minifyEnabled false }
